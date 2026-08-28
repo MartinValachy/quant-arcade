@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Quant Arcade — 24 Trading Interview Games</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+</head>
+<body>
+<div id="app">
+  <!-- ===== MENU ===== -->
+  <section id="menu" class="screen active">
+    <header class="masthead">
+      <div class="mast-left">
+        <div class="logo">Q<span>A</span></div>
+        <div>
+          <h1>QUANT ARCADE</h1>
+          <p class="tag">24 pressure-tested mini games from the quant trading interview loop</p>
+        </div>
+      </div>
+      <div class="mast-right">
+        <div class="desk-rating">
+          <span class="dr-label">DESK RATING</span>
+          <span class="dr-value" id="deskRating">—</span>
+          <span class="dr-sub" id="deskSub">no games played</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <div class="filters" id="catFilters"></div>
+      <div class="tools">
+        <button class="btn ghost sm" id="btnHowTo">How scoring works</button>
+        <button class="btn ghost sm" id="btnReset">Reset progress</button>
+      </div>
+    </div>
+
+    <div id="gameGrid" class="grid"></div>
+
+    <footer class="foot">
+      <p>Percentile bands are <b>modelled</b>, not measured — see <code>CALIBRATION.md</code> for the derivation of every threshold.</p>
+    </footer>
+  </section>
+
+  <!-- ===== BRIEF ===== -->
+  <section id="brief" class="screen">
+    <button class="back" id="briefBack">← desk</button>
+    <div class="brief-card">
+      <div class="brief-head">
+        <span class="cat-chip" id="briefCat"></span>
+        <h2 id="briefTitle"></h2>
+        <p id="briefBlurb"></p>
+      </div>
+      <div class="brief-body">
+        <div class="brief-col">
+          <h4>What it tests</h4>
+          <ul id="briefSkills"></ul>
+        </div>
+        <div class="brief-col">
+          <h4>How to play</h4>
+          <div id="briefRules"></div>
+        </div>
+      </div>
+      <div class="variant-pick" id="variantPick"></div>
+    </div>
+  </section>
+
+  <!-- ===== PLAY ===== -->
+  <section id="play" class="screen">
+    <div class="hud">
+      <button class="back" id="playQuit">← quit</button>
+      <div class="hud-title"><span id="hudName"></span><small id="hudVariant"></small></div>
+      <div class="hud-stats">
+        <div class="stat"><label>SCORE</label><span id="hudScore">0</span></div>
+        <div class="stat"><label>STREAK</label><span id="hudStreak">0</span></div>
+        <div class="stat"><label>ACC</label><span id="hudAcc">—</span></div>
+        <div class="stat time"><label>TIME</label><span id="hudTime">0.0</span></div>
+      </div>
+    </div>
+    <div class="timebar"><div id="timeFill"></div></div>
+    <div id="stage" class="stage"></div>
+    <div id="toastLayer" class="toast-layer"></div>
+  </section>
+
+  <!-- ===== RESULTS ===== -->
+  <section id="results" class="screen">
+    <div class="res-card">
+      <div class="res-head">
+        <p class="res-game" id="resGame"></p>
+        <div class="res-score" id="resScore">0</div>
+        <div class="res-band" id="resBand"></div>
+        <p class="res-pct" id="resPct"></p>
+      </div>
+      <div class="ladder" id="ladder"></div>
+      <div class="res-stats" id="resStats"></div>
+      <div class="res-notes" id="resNotes"></div>
+      <div class="res-actions">
+        <button class="btn primary" id="resAgain">Play again</button>
+        <button class="btn" id="resOther">Other variant</button>
+        <button class="btn ghost" id="resMenu">Back to desk</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MODAL ===== -->
+  <div id="modal" class="modal"><div class="modal-box"><button id="modalClose" class="modal-x">✕</button><div id="modalBody"></div></div></div>
+</div>
+
+<script src="js/core/rng.js"></script>
+<script src="js/core/util.js"></script>
+<script src="js/core/store.js"></script>
+<script src="js/core/percentile.js"></script>
+<script src="js/core/widgets.js"></script>
+<script src="js/core/engine.js"></script>
+
+<script src="js/games/01-bayes-urn.js"></script>
+<script src="js/games/02-ev-sprint.js"></script>
+<script src="js/games/03-cond-prob.js"></script>
+<script src="js/games/04-combinatorics.js"></script>
+<script src="js/games/05-pattern-race.js"></script>
+<script src="js/games/06-dice-duel.js"></script>
+<script src="js/games/07-market-maker.js"></script>
+<script src="js/games/08-inventory-skew.js"></script>
+<script src="js/games/09-order-book.js"></script>
+<script src="js/games/10-toxic-flow.js"></script>
+<script src="js/games/11-delta-hedge.js"></script>
+<script src="js/games/12-winners-curse.js"></script>
+<script src="js/games/13-arithmetic.js"></script>
+<script src="js/games/14-percent-sprint.js"></script>
+<script src="js/games/15-fermi.js"></script>
+<script src="js/games/16-sequences.js"></script>
+<script src="js/games/17-compounding.js"></script>
+<script src="js/games/18-target-sum.js"></script>
+<script src="js/games/19-biased-coin.js"></script>
+<script src="js/games/20-regime-shift.js"></script>
+<script src="js/games/21-param-estimate.js"></script>
+<script src="js/games/22-correlation.js"></script>
+<script src="js/games/23-drift-hunt.js"></script>
+<script src="js/games/24-kelly.js"></script>
+
+<script src="js/app.js"></script>
+</body>
+</html>

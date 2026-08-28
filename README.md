@@ -1,0 +1,156 @@
+# Quant Arcade
+
+24 animated mini games drawn from the quant trading interview loop — the probability,
+market-making, mental-maths and signal-detection tasks that Optiver, Jane Street, IMC, SIG
+and their peers actually put in front of candidates.
+
+Every game is a **75–85 second sprint**, comes in **Standard** and **Hard** variants, and
+scores you against a modelled applicant distribution: median, top 10%, top 5%, top 1%.
+
+![no build step](https://img.shields.io/badge/build-none-00e08a) ![no dependencies](https://img.shields.io/badge/dependencies-0-3aa9ff)
+
+---
+
+## Run it
+
+```bash
+python -m http.server 8777 --directory quant-arcade
+```
+
+Then open <http://localhost:8777>.
+
+Opening `index.html` directly by double-clicking works too — everything is plain
+`<script>` tags, so there is no module/CORS problem on `file://`. The only network request
+the page makes is to Google Fonts, and it falls back to system monospace without it.
+
+**Requirements:** a modern browser. That's it. No npm, no build, no backend, no telemetry.
+Scores live in `localStorage` on your machine.
+
+---
+
+## The 24 games
+
+### Probability & EV
+| # | Game | What it tests |
+|---|---|---|
+| 01 | **Bayesian Urn** | Posterior updating from a draw sequence; base-rate discipline |
+| 02 | **Fair Value Sprint** | EV from first principles, then buy / sell / pass against a quote |
+| 03 | **Conditional Traps** | Diagnostic tests, at-least-one conditions, n-door Monty, retrodiction |
+| 04 | **Combinatorics Counter** | Lattice paths, anagrams, stars and bars, derangements — exact integers |
+| 05 | **Pattern Race** | Penney's game; non-transitivity and expected waiting times |
+| 06 | **Dice Duel** | Non-transitive dice; pairwise dominance versus the mean |
+
+### Market making
+| # | Game | What it tests |
+|---|---|---|
+| 07 | **Quote the Market** | Price an unknown, quote two-sided to five counterparties, survive informed flow |
+| 08 | **Inventory Skew** | Live flow, skewing quotes, position limits, PnL marking every second |
+| 09 | **Order Book Reader** | A level-2 book flashes then vanishes: mid, microprice, imbalance, sweep VWAP |
+| 10 | **Toxic Flow** | Learn each counterparty's hidden toxicity from a handful of noisy fills |
+| 11 | **Delta Hedge** | Beta-weighted futures, min-variance ratios, option deltas, DV01 matching |
+| 12 | **Winner's Curse** | Common-value auctions; shading against the number of rivals |
+
+### Mental maths
+| # | Game | What it tests |
+|---|---|---|
+| 13 | **80 in 8** | The Optiver-style raw arithmetic sprint |
+| 14 | **Percentage Sprint** | Percent change, reverse moves, basis points, margin vs. markup |
+| 15 | **Fermi Desk** | Order-of-magnitude estimation, scored on a log scale |
+| 16 | **Sequence Break** | Difference tables, recurrences, interleaved sequences |
+| 17 | **Compounding Desk** | Rule of 72, PV/FV, CAGR, √252 vol and Sharpe scaling |
+| 18 | **Target Sum** | Subset-sum under working-memory load |
+
+### Signal & statistics
+| # | Game | What it tests |
+|---|---|---|
+| 19 | **Spot the Bias** | Sequential sampling; when to stop collecting evidence and act |
+| 20 | **Regime Shift** | Changepoint detection with a real false-alarm penalty |
+| 21 | **The Estimator** | German tank problem, uniform bounds, Poisson rates, bias correction |
+| 22 | **Correlation Eye** | Reading ρ off a scatter, with leverage outliers in Hard |
+| 23 | **Drift Hunt** | Telling a drifting series from random walks — Sharpe intuition, live |
+| 24 | **Kelly Sizing** | f* = p − q/b, log-utility growth over blocks of bets, declining bad bets |
+
+---
+
+## Scoring
+
+Item-based games:
+
+```
+award = base × quality × speed × streak
+speed  ∈ [0.70, 1.30]   against that game's par time
+streak ∈ [1.00, 1.60]   after ten correct in a row
+```
+
+Wrong answers cost a fraction of the base, so the top scores come from being fast **and**
+right rather than fast and hopeful.
+
+The five trading games (07, 08, 10, 12, 24) ignore that entirely and score **cumulative
+PnL**, which can go negative — a run where you get picked off all afternoon finishes at 0.
+Their thresholds come from a Monte-Carlo of each game's own mechanics under graded policies.
+
+### The percentile bands
+
+Each variant carries four anchor scores. They are **modelled, not measured** — there is no
+database of real applicants behind this. What sits behind them is written out game by game
+in [CALIBRATION.md](CALIBRATION.md): an assumed throughput and accuracy per percentile,
+pushed through the app's own scoring code, then interpolated against a normal ability
+distribution.
+
+If you think the model is wrong, the file shows you exactly which numbers to argue with.
+
+**Desk Rating** in the top-right combines your best result per game into one figure,
+shrunk toward the median by `n/(n+3)` so a single strong run cannot carry it.
+
+---
+
+## Controls
+
+| | |
+|---|---|
+| <kbd>1</kbd>–<kbd>4</kbd> | pick a multiple-choice answer |
+| <kbd>Enter</kbd> | submit a typed answer or lock a slider |
+| <kbd>←</kbd> <kbd>→</kbd> | skew quotes (Inventory Skew) / nudge a slider |
+| <kbd>Space</kbd> | call a regime change · clear a selection · flatten skew |
+| <kbd>A</kbd>–<kbd>F</kbd> | pick a coin or tape in the detection games |
+| <kbd>Esc</kbd> | quit a run, close a dialog |
+
+---
+
+## Project layout
+
+```
+quant-arcade/
+├── index.html            screens + script tags
+├── css/app.css           the whole visual system
+├── js/core/
+│   ├── rng.js            seeded RNG, normal/binomial/Poisson draws
+│   ├── util.js           DOM, formatting, nCk, normal CDF, correlation
+│   ├── store.js          localStorage best scores
+│   ├── percentile.js     anchors → z → tail probability
+│   ├── widgets.js        ask / numeric / slider / live + canvas charts
+│   └── engine.js         registry, sprint clock, scoring
+├── js/games/01…24.js     one self-contained game each
+├── js/app.js             menu, brief, results, desk rating
+├── CALIBRATION.md        every threshold, and how it was derived
+└── README.md
+```
+
+### Adding a game
+
+Drop a file in `js/games/`, add a `<script>` tag, and call `QA.registerGame({...})` with
+`id`, `n`, `name`, `cat`, `blurb`, `skills`, `rules`, two `variants` (each with a `th`
+anchor block) and an `async play(ctx)`. Inside `play`, loop `while (ctx.running)` and
+`await` one of the widgets — the engine handles the clock, the HUD, scoring and teardown.
+
+---
+
+## Honest caveats
+
+- A 75-second sprint is a small sample. Most games separate a median candidate from a
+  top-decile one by 2–5 run-to-run standard deviations, so one run is informative. Three do
+  not: **Toxic Flow, Winner's Curse and Kelly Sizing** are variance machines by nature —
+  take a median of five runs there. CALIBRATION.md §6 lists the figure for every game.
+- Percentiles are a model, not data. See [CALIBRATION.md](CALIBRATION.md) §6.
+- Repeated play teaches you the generators, which real assessments do not allow. Your first
+  few runs at each game are the honest ones.
