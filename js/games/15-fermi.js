@@ -37,6 +37,15 @@
     var m = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "-": "⁻" };
     return String(n).split("").map(function (c) { return m[c] || c; }).join("");
   }
+  function sliderRange(rng, item) {
+    var E = Math.log10(item.a), below = rng.uni(2.4, 5.6);
+    var lo = u.round(E - below, 1);
+    return { E: E, lo: lo, hi: u.round(lo + 8, 1), below: below };
+  }
+  function scoreEstimate(error, cfg) {
+    if (error <= cfg.full) return 1;
+    return u.clamp(1 - (error - cfg.full) / (cfg.tol - cfg.full), 0, 1);
+  }
 
   QA.registerGame({
     id: "fermi", n: 15, name: "Fermi Desk", cat: "math",
@@ -64,9 +73,7 @@
 
       while (ctx.running) {
         var it = pool[i++ % pool.length];
-        var E = Math.log10(it.a);
-        var below = rng.uni(2.4, 5.6), span = 8;
-        var lo = u.round(E - below, 1), hi = u.round(lo + span, 1);
+        var range = sliderRange(rng, it), E = range.E, lo = range.lo, hi = range.hi;
 
         var res = await w.slider(ctx, {
           eyebrow: "ESTIMATE THE ORDER OF MAGNITUDE",
@@ -79,8 +86,7 @@
           score: function (x) {
             var e = Math.abs(x - E);
             errs.push(e);
-            if (e <= cfg.full) return 1;
-            return u.clamp(1 - (e - cfg.full) / (cfg.tol - cfg.full), 0, 1);
+            return scoreEstimate(e, cfg);
           },
           feedbackMs: 1600,
           explain: function (x, acc) {
@@ -96,4 +102,8 @@
       ctx.notes = "The technique is always the same: <b>write the quantity as a product</b> of three or four things you can bound, round each to one significant figure, and add the exponents. Estimating the answer directly is how people end up three decades out.";
     }
   });
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { Q: Q, sci: sci, sup: sup, sliderRange: sliderRange, scoreEstimate: scoreEstimate };
+  }
 })();

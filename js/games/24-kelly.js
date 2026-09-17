@@ -2,12 +2,44 @@
 (function () {
   var QA = window.QA, u = QA.u, w = QA.w;
 
+  function makeBet(rng, cfg) {
+    var p, b, edge, wantBad, guard = 0;
+    do {
+      p = u.round(rng.uni(cfg.p[0], cfg.p[1]), 2);
+      b = u.round(rng.uni(cfg.b[0], cfg.b[1]), 1);
+      edge = p * b - (1 - p);
+      wantBad = rng.bool(cfg.badRate);
+    } while (guard++ < 80 && ((wantBad && edge > 0) || (!wantBad && edge <= 0.04)));
+    var fStar = edge / b;
+    return { p: p, b: b, edge: edge, fStar: fStar, isTrap: fStar <= 0, wantBad: wantBad };
+  }
+
+  function settleBlock(bank, bet, f, rng, cfg) {
+    var wins = 0, floorHits = 0, path = [bank];
+    for (var k = 0; k < cfg.reps; k++) {
+      var won = rng.bool(bet.p);
+      if (won) wins++;
+      bank = won ? bank * (1 + f * bet.b) : bank * (1 - f);
+      if (bank < 1) { bank = 1; floorHits++; }
+      path.push(bank);
+    }
+    return { bank: bank, wins: wins, floorHits: floorHits, path: path };
+  }
+
+  function sizingScore(f, bet, cfg) {
+    return Math.round(cfg.sizeBonus * u.clamp(1 - Math.abs(f - Math.max(0, bet.fStar)) / cfg.tolF, 0, 1));
+  }
+
+  function growthScore(before, after, cfg) {
+    return Math.round(cfg.K * Math.log2(after / before));
+  }
+
   QA.registerGame({
     id: "kelly", n: 24, name: "Kelly Sizing", cat: "signal",
     blurb: "A run of favourable bets and one decision each time: what fraction. Bet too little and you are wasting edge; bet too much and the edge stops mattering.",
     skills: ["Kelly criterion f* = p − q/b", "Log-utility growth", "Risk of ruin", "Declining a negative-edge bet"],
-    rules: "<p>You start with a bankroll of <b>1,000</b>. Each round shows a win probability <b>p</b> and net odds <b>b</b> — win and your stake returns b×, lose and it is gone.</p>" +
-      "<p>Your chosen fraction is then staked over a <b>block of 8 identical bets</b>, compounding as it goes. Kelly is a claim about repeated play; one flip could never show it.</p>" +
+      rules: "<p>You start with a bankroll of <b>1,000</b>. Each round shows a win probability <b>p</b> and net odds <b>b</b> — win and your stake returns b×, lose and it is gone.</p>" +
+      "<p>Your chosen fraction is then staked over a <b>block of 6 identical bets</b>, compounding as it goes. Kelly is a claim about repeated play; one flip could never show it.</p>" +
       "<p>Slide to the fraction of your bankroll you want on it, then <kbd>Enter</kbd>. You score for <b>sizing close to Kelly</b> and again for the <b>log growth</b> that follows, so doubling the bankroll is worth the same as doubling it again.</p>" +
       "<p>Some bets are negative edge. The correct size is then <b>zero</b>, and taking them is how the leaderboard separates.</p>",
     variants: {
@@ -32,16 +64,8 @@
       ctx.addScore(cfg.book);
 
       while (ctx.running) {
-        var p, b, guard = 0;
-        do {
-          p = u.round(rng.uni(cfg.p[0], cfg.p[1]), 2);
-          b = u.round(rng.uni(cfg.b[0], cfg.b[1]), 1);
-          var edge = p * b - (1 - p);
-          var wantBad = rng.bool(cfg.badRate);
-        } while (guard++ < 80 && ((wantBad && edge > 0) || (!wantBad && edge <= 0.04)));
-
-        var fStar = (p * b - (1 - p)) / b;
-        var isTrap = fStar <= 0;
+        var bet = makeBet(rng, cfg);
+        var p = bet.p, b = bet.b, fStar = bet.fStar, isTrap = bet.isTrap;
         if (isTrap) traps++;
         bets++;
 
@@ -62,16 +86,13 @@
           feedbackMs: 1600,
           explain: function (v) {
             var f = v / 100;
-            var before = bank, wins = 0;
+            var before = bank;
             // One decision is staked over a block of identical bets. Kelly is a
             // statement about repeated play, and a single coin flip cannot show it.
-            for (var k = 0; k < cfg.reps; k++) {
-              var won = rng.bool(p);
-              if (won) wins++;
-              bank = won ? bank * (1 + f * b) : bank * (1 - f);
-              bank = Math.max(1, bank);
-              hist.push(bank);
-            }
+            var settled = settleBlock(bank, bet, f, rng, cfg);
+            bank = settled.bank;
+            var wins = settled.wins;
+            settled.path.slice(1).forEach(function (value) { hist.push(value); });
             while (hist.length > 60) hist.shift();
 
             if (isTrap && f > 0.02) trapsTaken++;
@@ -80,8 +101,8 @@
 
             // Two components: how well the bet was sized, and what compounding did
             // with it. The sizing term is what makes an 85-second run informative at all.
-            var sizing = Math.round(cfg.sizeBonus * u.clamp(1 - Math.abs(f - Math.max(0, fStar)) / cfg.tolF, 0, 1));
-            var growth = Math.round(cfg.K * Math.log2(bank / before));
+            var sizing = sizingScore(f, bet, cfg);
+            var growth = growthScore(before, bank, cfg);
             var pts = sizing + growth;
             if (pts !== 0) ctx.addScore(pts);
 
@@ -113,4 +134,14 @@
         "This game has genuinely high variance, so read your <b>average</b> over several runs rather than any single one.";
     }
   });
+
+  // Browser no-op; exposes the pure bet mechanics to the verification harness.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = {
+      makeBet: makeBet,
+      settleBlock: settleBlock,
+      sizingScore: sizingScore,
+      growthScore: growthScore
+    };
+  }
 })();

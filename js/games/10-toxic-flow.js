@@ -5,6 +5,25 @@
   var NAMES = ["VELA", "K2 CAP", "ORION", "MERIDIAN", "HALCYON", "TRIDENT", "AXIOM"];
   var HUES = ["#00e08a", "#3aa9ff", "#ffb020", "#a97bff", "#22d3ee"];
 
+  function makeCounterparties(rng, cfg) {
+    var kinds = rng.shuffle(Array.apply(null, Array(cfg.n)).map(function (_, i) { return i < Math.ceil(cfg.n / 2); }));
+    return rng.sample(NAMES, cfg.n).map(function (nm, i) {
+      var r = kinds[i] ? cfg.clean : cfg.toxic;
+      return { name: nm, hue: HUES[i % HUES.length], tox: rng.uni(r[0], r[1]), n: 0, pnl: 0, adverse: 0 };
+    });
+  }
+
+  function nextTrade(rng, cps, cfg) {
+    if (cfg.drift) cps.forEach(function (c) { c.tox = u.clamp(c.tox + rng.norm(0, cfg.drift * 12), 0.03, 0.95); });
+    var c = rng.pick(cps);
+    var edge = u.round(rng.uni(cfg.edge[0], cfg.edge[1]), 2);
+    var informed = rng.bool(c.tox);
+    var real = edge + (informed ? -cfg.impact : 0);
+    return { c: c, edge: edge, informed: informed, real: real, side: rng.bool() ? "BUY" : "SELL" };
+  }
+
+  function tradeScore(real, cfg) { return Math.round(real * cfg.scale); }
+
   QA.registerGame({
     id: "toxic-flow", n: 10, name: "Toxic Flow", cat: "mm",
     blurb: "Five counterparties, five hidden levels of information. The edge on the screen is not the edge you keep — work out who is picking you off, from a handful of noisy samples.",
@@ -16,12 +35,12 @@
       standard: {
         label: "Standard", note: "4 counterparties, clean vs. toxic", duration: 80,
         n: 4, impact: 2.0, edge: [0.05, 2.0], clean: [0.02, 0.16], toxic: [0.76, 0.94], drift: 0, scale: 150,
-        th: { p50: 720, p90: 1125, p95: 1350, p99: 1475 }
+        th: { p50: 2220, p90: 3577, p95: 3831, p99: 6706 }
       },
       hard: {
         label: "Hard", note: "5 counterparties, drifting toxicity, thin edges", duration: 80,
         n: 5, impact: 2.4, edge: [0.05, 1.6], clean: [0.04, 0.22], toxic: [0.70, 0.92], drift: 0.006, scale: 190,
-        th: { p50: 420, p90: 780, p95: 1050, p99: 1150 }
+        th: { p50: -1030, p90: 1613, p95: 2303, p99: 5240 }
       }
     },
 
@@ -30,11 +49,7 @@
       // Toxicity is bimodal: some counterparties are essentially clean, others are
       // essentially always informed. That makes the learning problem solvable inside
       // 80 seconds instead of drowning in per-trade noise.
-      var kinds = rng.shuffle(Array.apply(null, Array(cfg.n)).map(function (_, i) { return i < Math.ceil(cfg.n / 2); }));
-      var cps = rng.sample(NAMES, cfg.n).map(function (nm, i) {
-        var r = kinds[i] ? cfg.clean : cfg.toxic;
-        return { name: nm, hue: HUES[i % HUES.length], tox: rng.uni(r[0], r[1]), n: 0, pnl: 0, adverse: 0 };
-      });
+      var cps = makeCounterparties(rng, cfg);
       var pnl = 0, taken = 0, good = 0, missed = 0;
 
       function tableHTML(highlight) {
@@ -50,13 +65,8 @@
       }
 
       while (ctx.running) {
-        if (cfg.drift) cps.forEach(function (c) { c.tox = u.clamp(c.tox + rng.norm(0, cfg.drift * 12), 0.03, 0.95); });
-        var c = rng.pick(cps);
-        var edge = u.round(rng.uni(cfg.edge[0], cfg.edge[1]), 2);
-        var informed = rng.bool(c.tox);
-        var move = informed ? -cfg.impact : 0;
-        var real = edge + move;
-        var side = rng.bool() ? "BUY" : "SELL";
+        var trade = nextTrade(rng, cps, cfg);
+        var c = trade.c, edge = trade.edge, informed = trade.informed, real = trade.real, side = trade.side;
 
         var res = await w.ask(ctx, {
           eyebrow: "INCOMING RFQ",
@@ -71,6 +81,7 @@
             { label: "ACCEPT", sub: "take the edge", correct: real > 0 },
             { label: "REJECT", sub: "let it go", correct: real <= 0 }
           ],
+          manual: true,
           feedbackMs: 1100,
           explain: function (i, ok) {
             var accepted = i === 0;
@@ -78,8 +89,9 @@
             if (accepted) {
               taken++; pnl += real; c.pnl += real;
               if (real > 0) good++;
-              ctx.addScore(Math.round(real * cfg.scale));
+              ctx.addScore(tradeScore(real, cfg));
             } else if (real > 0) { missed++; }
+            ctx.mark(real > 0);
             return (accepted ? "traded: " : "passed: ") +
               (informed ? '<span class="down">INFORMED — market moved ' + (-cfg.impact).toFixed(1) + "</span>" : '<span class="up">uninformed — no move</span>') +
               " · realised " + u.signed(real, 2) + " ticks" +
@@ -100,4 +112,13 @@
         "Three adverse fills out of four is weak evidence — but on a real desk you act on weak evidence and re-price, rather than waiting for significance you will never get.";
     }
   });
+
+  // Browser no-op; exposes the pure trade mechanics to the verification harness.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = {
+      makeCounterparties: makeCounterparties,
+      nextTrade: nextTrade,
+      tradeScore: tradeScore
+    };
+  }
 })();

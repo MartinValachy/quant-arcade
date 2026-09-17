@@ -2,6 +2,26 @@
 (function () {
   var QA = window.QA, u = QA.u, w = QA.w;
 
+  function makeRound(rng, cfg) {
+    var V = u.round(rng.uni(120, 480), 0);
+    var sd = rng.uni(cfg.noise[0], cfg.noise[1]);
+    var N = rng.int(cfg.rivals[0], cfg.rivals[1]);
+    var mySig = V + rng.norm(0, sd);
+    var rivalBids = [];
+    for (var i = 0; i < N; i++) {
+      var s = V + rng.norm(0, sd);
+      rivalBids.push(s - sd * rng.uni(cfg.rivalShade[0], cfg.rivalShade[1]));
+    }
+    var topRival = Math.max.apply(null, rivalBids);
+    return {
+      V: V, sd: sd, N: N, mySig: mySig, rivalBids: rivalBids, topRival: topRival,
+      lo: Math.round(mySig - 3.2 * sd), hi: Math.round(mySig + 0.6 * sd)
+    };
+  }
+
+  function profitAt(round, bid) { return bid > round.topRival ? round.V - bid : 0; }
+  function scoreProfit(profit, cfg) { return Math.round(profit * cfg.scale); }
+
   QA.registerGame({
     id: "winners-curse", n: 12, name: "Winner's Curse", cat: "mm",
     blurb: "A block is worth the same to everyone; you each see a different noisy estimate. Winning the auction is evidence your estimate was the high one.",
@@ -27,20 +47,12 @@
       var profit = 0, wins = 0, rounds = 0, losses = 0;
 
       while (ctx.running) {
-        var V = u.round(rng.uni(120, 480), 0);
-        var sd = rng.uni(cfg.noise[0], cfg.noise[1]);
-        var N = rng.int(cfg.rivals[0], cfg.rivals[1]);
-        var mySig = V + rng.norm(0, sd);
-        var rivalBids = [];
-        for (var i = 0; i < N; i++) {
-          var s = V + rng.norm(0, sd);
-          // the field is cautious: rivals over-shade, which is what leaves money on the table
-          rivalBids.push(s - sd * rng.uni(cfg.rivalShade[0], cfg.rivalShade[1]));
-        }
-        var topRival = Math.max.apply(null, rivalBids);
+        var round = makeRound(rng, cfg);
+        var V = round.V, sd = round.sd, N = round.N, mySig = round.mySig;
+        var rivalBids = round.rivalBids, topRival = round.topRival;
         rounds++;
 
-        var lo = Math.round(mySig - 3.2 * sd), hi = Math.round(mySig + 0.6 * sd);
+        var lo = round.lo, hi = round.hi;
 
         var res = await w.slider(ctx, {
           eyebrow: "SEALED BID · " + N + " RIVALS · SIGNAL NOISE σ ≈ " + u.round(sd, 1),
@@ -53,10 +65,10 @@
           feedbackMs: 1700,
           explain: function (bid) {
             var won = bid > topRival;
-            var p = won ? V - bid : 0;
+            var p = profitAt(round, bid);
             if (won) { wins++; profit += p; if (p < 0) losses++; }
             ctx.mark(won ? p > 0 : (V - topRival) <= 0);
-            var pts = Math.round(p * cfg.scale);
+            var pts = scoreProfit(p, cfg);
             if (pts !== 0) ctx.addScore(pts);
             var ladder = rivalBids.slice().sort(function (a, b) { return b - a; }).slice(0, 4)
               .map(function (b) { return u.round(b, 0); }).join(" · ");
@@ -81,4 +93,9 @@
       ctx.notes = "The correct shade grows with the <b>number of rivals</b> and with the <b>signal noise</b>: roughly <b>σ × E[max of N standard normals]</b>, which is about 1.0σ at N=3, 1.5σ at N=10. Winning 60% of auctions is a warning sign, not a scoreboard.";
     }
   });
+
+  // Browser no-op; exposes the pure auction mechanics to the verification harness.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { makeRound: makeRound, profitAt: profitAt, scoreProfit: scoreProfit };
+  }
 })();

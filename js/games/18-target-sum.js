@@ -14,6 +14,9 @@
     var target = u.sum(idx.map(function (i) { return cells[i]; }));
     return { cells: cells, target: target, sol: idx };
   }
+  function solved(total, target, count, cfg) {
+    return total === target && (!cfg.exact || count === cfg.k);
+  }
 
   QA.registerGame({
     id: "target-sum", n: 18, name: "Target Sum", cat: "math",
@@ -88,7 +91,7 @@
             });
           }
           function check() {
-            var ok = total() === g.target && (!cfg.exact || count() === cfg.k);
+            var ok = solved(total(), g.target, count(), cfg);
             if (!ok) return;
             btns.forEach(function (b) { b.disabled = true; });
             sum.style.color = "#00e08a";
@@ -116,4 +119,8 @@
       ctx.notes = "Work from the <b>largest cell below the target</b> downwards and track the remainder, rather than adding upward from small numbers. In hard mode the negatives are the escape hatch — an overshoot is a solvable position, not a dead end.";
     }
   });
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { makeGrid: makeGrid, solved: solved };
+  }
 })();

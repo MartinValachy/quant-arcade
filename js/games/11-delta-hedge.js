@@ -60,6 +60,11 @@
       var w1 = rng.int(1, 9) * 100000, b1 = u.round(rng.uni(0.4, 1.8), 2);
       var w2 = rng.int(1, 9) * 100000, b2 = u.round(rng.uni(0.4, 1.8), 2);
       var shrt = rng.bool();
+      // Net equity is undefined for equal long/short notionals. Reroll only the
+      // invalid second notional so no generated round is unscorable.
+      if (shrt && w1 === w2) {
+        do { w2 = rng.int(1, 9) * 100000; } while (w1 === w2);
+      }
       var net = (w1 * b1 + (shrt ? -1 : 1) * w2 * b2) / (w1 + (shrt ? -1 : 1) * w2);
       return {
         q: "What is the portfolio beta?",
@@ -128,4 +133,9 @@
       ctx.notes = "Everything here is one identity: <b>match the sensitivity, not the size</b>. Convert both legs to the same risk unit — dollars per 1% move, or dollars per basis point — and the ratio falls out.";
     }
   });
+
+  // Browser no-op; exposes the pure question families to the verification harness.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { FAM: FAM };
+  }
 })();

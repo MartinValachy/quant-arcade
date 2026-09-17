@@ -25,7 +25,10 @@
       /** uniform float in [a,b) */
       uni: function (a, b) { return a + (b - a) * next(); },
       /** integer in [a,b] inclusive */
-      int: function (a, b) { return a + Math.floor(next() * (b - a + 1)); },
+      int: function (a, b) {
+        if (a > b) throw new RangeError("rng.int requires a <= b");
+        return a + Math.floor(next() * (b - a + 1));
+      },
       /** true with probability p */
       bool: function (p) { return next() < (p === undefined ? 0.5 : p); },
       /** random element */

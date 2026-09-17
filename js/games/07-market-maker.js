@@ -159,4 +159,9 @@
       ctx.notes = "Your mid is the only thing you fully control. A mid that is off by <b>0.5σ</b> costs more than any spread choice can recover — informed flow will always take the side you got wrong.";
     }
   });
+
+  // Browser no-op; exposes only the pure generator pieces to the verification harness.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { BANK: BANK, pickoff: pickoff, stat: stat };
+  }
 })();

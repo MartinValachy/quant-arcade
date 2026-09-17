@@ -99,4 +99,8 @@
       ctx.notes = "Two habits pay for themselves: convert percentages to <b>multipliers</b> before chaining them, and remember that <b>1 bp of $1m is $100</b> — most desk mental maths is anchored on that one fact.";
     }
   });
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { FAM: FAM };
+  }
 })();

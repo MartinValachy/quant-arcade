@@ -131,4 +131,8 @@
       ctx.notes = "Non-transitivity is the whole point: A→B→C→A cycles exist because <b>P(X&gt;Y) is not a ranking</b>. On a real desk this is the same error as ranking strategies by mean return while ignoring the joint distribution against the specific thing you are trading against.";
     }
   });
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { COLORS: COLORS, SETS: SETS, beats: beats, randomSet: randomSet, makeItem: makeItem };
+  }
 })();

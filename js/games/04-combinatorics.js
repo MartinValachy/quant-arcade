@@ -154,4 +154,8 @@
       ctx.notes = "When you freeze, name the frame first: <b>ordered or unordered</b>, <b>with or without repetition</b>. Almost all of these are one of four objects — C(n,k), n!/∏k!, stars-and-bars, or an inclusion–exclusion correction to one of them.";
     }
   });
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { WORDS: WORDS, FAM: FAM };
+  }
 })();

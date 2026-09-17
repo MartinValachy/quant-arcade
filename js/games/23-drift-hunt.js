@@ -2,6 +2,9 @@
 (function () {
   var QA = window.QA, u = QA.u, w = QA.w;
 
+  function drawIncrement(rng, mean, sigma) { return rng.norm(mean, sigma); }
+  function theoreticalZ(mu, sigma, n) { return mu * Math.sqrt(n) / sigma; }
+
   QA.registerGame({
     id: "drift-hunt", n: 23, name: "Drift Hunt", cat: "signal",
     blurb: "Several tapes run side by side. Exactly one has real edge in it; the rest are noise doing what noise does. Find it before it stops being obvious.",
@@ -66,7 +69,7 @@
           var iv = setInterval(function () {
             n++;
             for (var i = 0; i < cfg.series; i++) {
-              var d = rng.norm(i === target ? mu : 0, cfg.sigma);
+              var d = drawIncrement(rng, i === target ? mu : 0, cfg.sigma);
               data[i].push(data[i][data[i].length - 1] + d);
               if (data[i].length > 200) data[i].shift();
               var z = data[i][data[i].length - 1] / (cfg.sigma * Math.sqrt(n));
@@ -93,7 +96,7 @@
             ctx.resolve({ correct: ok, pts: cfg.pts, ms: performance.now() - t0, el: cards[i] });
             fb.className = "fb " + (ok ? "good" : "bad");
             fb.innerHTML = (ok ? "✔ " : "✘ ") + "tape " + String.fromCharCode(65 + target) + " had drift " + u.round(mu, 2) +
-              "σ/tick · called after <b>" + n + "</b> ticks (theoretical z ≈ " + u.round(mu * Math.sqrt(n), 2) + ")";
+              "σ/tick · called after <b>" + n + "</b> ticks (theoretical z ≈ " + u.round(theoreticalZ(mu, cfg.sigma, n), 2) + ")";
             setTimeout(function () { finish({ ok: true }); }, 1400);
           }
           var to = setTimeout(function () {
@@ -122,4 +125,8 @@
       ctx.notes = "The z-score in each corner is the honest statistic: <b>cumulative move ÷ σ√n</b>. It is the same quantity as a Sharpe ratio, which is why a strategy with a 1.0 annual Sharpe still needs years before you can distinguish it from luck.";
     }
   });
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { drawIncrement: drawIncrement, theoreticalZ: theoreticalZ };
+  }
 })();

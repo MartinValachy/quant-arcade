@@ -101,4 +101,8 @@
       ctx.notes = "Compounding is addition in log space. Once you think that way, CAGR is just the average log return, vol scales with <b>√t</b> because variance adds, and a −50% drawdown obviously needs +100% back.";
     }
   });
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { FAM: FAM };
+  }
 })();

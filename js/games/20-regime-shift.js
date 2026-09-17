@@ -2,6 +2,29 @@
 (function () {
   var QA = window.QA, u = QA.u, w = QA.w;
 
+  function makeRound(rng, cfg) {
+    var tau = Math.floor(cfg.len * rng.uni(0.45, 0.72));
+    var volShift = rng.bool(0.4);
+    var dsign = rng.bool() ? 1 : -1;
+    var drift = rng.uni(cfg.drift[0], cfg.drift[1]) * cfg.sigma * dsign;
+    var vmult = rng.uni(cfg.volMult[0], cfg.volMult[1]);
+    return { tau: tau, volShift: volShift, drift: drift, vmult: vmult };
+  }
+
+  function regimeAt(round, i, cfg) {
+    var post = i > round.tau;
+    return {
+      post: post,
+      mean: post && !round.volShift ? round.drift : 0,
+      sd: cfg.sigma * (post && round.volShift ? round.vmult : 1)
+    };
+  }
+
+  function increment(round, i, rng, cfg) {
+    var regime = regimeAt(round, i, cfg);
+    return { value: rng.norm(regime.mean, regime.sd), regime: regime };
+  }
+
   QA.registerGame({
     id: "regime-shift", n: 20, name: "Regime Shift", cat: "signal",
     blurb: "A price prints tick by tick. Somewhere in the middle the process changes. Call it early and you are guessing; call it late and you are already short the move.",
@@ -29,11 +52,8 @@
       var rounds = 0, lags = [], falses = 0, misses = 0;
 
       while (ctx.running) {
-        var tau = Math.floor(cfg.len * rng.uni(0.45, 0.72));
-        var volShift = rng.bool(0.4);
-        var dsign = rng.bool() ? 1 : -1;
-        var drift = rng.uni(cfg.drift[0], cfg.drift[1]) * cfg.sigma * dsign;
-        var vmult = rng.uni(cfg.volMult[0], cfg.volMult[1]);
+        var round = makeRound(rng, cfg);
+        var tau = round.tau, volShift = round.volShift, drift = round.drift, vmult = round.vmult;
         rounds++;
 
         var out = await w.live(ctx, function (host, finish, onKey, onCleanup) {
@@ -55,10 +75,7 @@
 
           var iv = setInterval(function () {
             i++;
-            var post = i > tau;
-            var s = cfg.sigma * (post && volShift ? vmult : 1);
-            var m = post && !volShift ? drift : 0;
-            px += rng.norm(m, s);
+            px += increment(round, i, rng, cfg).value;
             data.push(px);
             w.drawSeries(cv, [{ data: data, color: "#3aa9ff", width: 2, fill: true, dot: true }], { grid: true, pad: 14, n: cfg.len });
             if (i >= cfg.len) end(null);
@@ -109,4 +126,9 @@
       ctx.notes = "A run of five moves in one direction happens by chance every 32 windows; that is not a regime. What actually shifts a changepoint statistic is the <b>cumulative</b> deviation from the pre-change mean — watch the running sum, not the last tick.";
     }
   });
+
+  // Browser no-op; exposes the pure regime mechanics to the verification harness.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { makeRound: makeRound, regimeAt: regimeAt, increment: increment };
+  }
 })();

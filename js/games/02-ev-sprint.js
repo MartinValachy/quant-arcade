@@ -21,6 +21,11 @@
     for (var k = 0; k <= n; k++) o.push({ p: u.nCk(n, k) / Math.pow(2, n), v: f(k) });
     return o;
   }
+  function quoteTruth(fair, price) {
+    var rel = (price - fair) / fair;
+    var eps = 1e-12;
+    return rel < -0.02 - eps ? 0 : rel > 0.02 + eps ? 1 : 2;
+  }
 
   function easyBank(rng) {
     var m = rng.pick([5, 10, 20]);
@@ -100,7 +105,7 @@
         }
         if (price <= 0) price = 1;
         var rel = (price - fair) / fair;
-        var truth = rel < -0.02 ? 0 : rel > 0.02 ? 1 : 2;
+        var truth = quoteTruth(fair, price);
 
         var res = await w.ask(ctx, {
           eyebrow: "QUOTE",
@@ -128,4 +133,9 @@
       ctx.notes = "Almost every one of these collapses to a symmetry or a linearity trick: <b>E[sum] = sum of E</b>, max/min pairs sum to a constant, and an optional re-roll is worth <b>E[max(X, 3.5)] = 4.25</b> on a fair die.";
     }
   });
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { ev: ev, d6: d6, mapOuts: mapOuts, twoDice: twoDice, threeDice: threeDice, coins: coins,
+      easyBank: easyBank, hardBank: hardBank, quoteTruth: quoteTruth };
+  }
 })();

@@ -133,4 +133,8 @@
       ctx.notes = "If first differences are not constant, take them again. If second differences are constant the sequence is quadratic; if the <b>ratios</b> are constant it is geometric; if neither, split the odd and even positions before you give up.";
     }
   });
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { GEN: GEN };
+  }
 })();

@@ -2,6 +2,22 @@
 (function () {
   var QA = window.QA, u = QA.u, w = QA.w;
 
+  function quoteAt(S, skew, cfg) {
+    var off = skew * cfg.tick;
+    return { bid: S - cfg.half + off, ask: S + cfg.half + off };
+  }
+
+  function flowStep(S, skew, inv, rng, cfg) {
+    var q = quoteAt(S, skew, cfg);
+    var pBuy = 1 / (1 + Math.exp(skew * cfg.beta));
+    if (rng.bool(pBuy)) return { pBuy: pBuy, edge: q.ask - S, inv: inv - 1, side: "buy" };
+    return { pBuy: pBuy, edge: S - q.bid, inv: inv + 1, side: "sell" };
+  }
+
+  function forceLiquidate() { return 0; }
+
+  function capitalCharge(inv, cfg) { return Math.round(cfg.carry * inv * inv); }
+
   QA.registerGame({
     id: "inventory-skew", n: 8, name: "Inventory Skew", cat: "mm",
     blurb: "Flow arrives whether you want it or not. Lean your quotes to bleed the position off before the price does it to you.",
@@ -13,12 +29,12 @@
       standard: {
         label: "Standard", note: "Steady flow, ±8 limit, light carry", duration: 80,
         flowMs: 800, sigma: 0.070, half: 0.10, tick: 0.02, beta: 1.10, limit: 8, scale: 130, liqPen: 260, carry: 1.2,
-        th: { p50: 280, p90: 900, p95: 945, p99: 1050 }
+        th: { p50: -135, p90: 1465, p95: 1501, p99: 1677 }
       },
       hard: {
         label: "Hard", note: "Fast flow, high vol, ±6 limit, heavy carry", duration: 80,
         flowMs: 520, sigma: 0.100, half: 0.08, tick: 0.02, beta: 0.95, limit: 6, scale: 95, liqPen: 340, carry: 1.6,
-        th: { p50: 70, p90: 590, p95: 656, p99: 810 }
+        th: { p50: -790, p90: 1276, p95: 1351, p99: 1580 }
       }
     },
 
@@ -72,8 +88,7 @@
         var eInv = document.getElementById("mmInv"), eSkew = document.getElementById("mmSkew");
 
         function quotes() {
-          var off = skew * cfg.tick;
-          return { bid: S - cfg.half + off, ask: S + cfg.half + off };
+          return quoteAt(S, skew, cfg);
         }
         function paint() {
           var q = quotes();
@@ -103,11 +118,9 @@
         }, 100);
 
         var flowT = setInterval(function () {
-          var q = quotes();
-          var pBuy = 1 / (1 + Math.exp(skew * cfg.beta));   // customer buys from us
-          var e;
-          if (rng.bool(pBuy)) { e = q.ask - S; inv -= 1; }
-          else { e = S - q.bid; inv += 1; }
+          var step = flowStep(S, skew, inv, rng, cfg);
+          var e = step.edge;
+          inv = step.inv;
           edge += e; fills++;
           maxAbs = Math.max(maxAbs, Math.abs(inv));
           ctx.mark(e > 0);
@@ -115,8 +128,7 @@
 
           if (Math.abs(inv) > cfg.limit) {
             liqs++;
-            var cut = inv > 0 ? -Math.ceil(inv / 2) : Math.ceil(-inv / 2);
-            inv += cut;
+            inv = forceLiquidate(inv);
             ctx.addScore(-cfg.liqPen, eInv);
             ctx.toast("LIMIT BREACH — forced liquidation", "bad");
           }
@@ -128,7 +140,7 @@
           lastMark = S;
           if (Math.abs(d) > 1e-9) ctx.addScore(Math.round(d * cfg.scale), eInv);
           // capital charge: a position is not free even when the price does not move
-          var carry = Math.round(cfg.carry * inv * inv);
+          var carry = capitalCharge(inv, cfg);
           if (carry > 0) ctx.addScore(-carry, eInv);
         }, 1000);
 
@@ -159,4 +171,14 @@
       ctx.notes = "The edge is real but tiny; the position is the whole game. Good players skew <b>early and gently</b> at ±2 lots rather than dumping hard at the limit — by the time you are at the limit, the market decides your PnL, not you.";
     }
   });
+
+  // Browser no-op; exposes the pure mechanics to the verification harness.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = {
+      quoteAt: quoteAt,
+      flowStep: flowStep,
+      forceLiquidate: forceLiquidate,
+      capitalCharge: capitalCharge
+    };
+  }
 })();

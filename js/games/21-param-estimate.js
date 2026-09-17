@@ -2,6 +2,10 @@
 (function () {
   var QA = window.QA, u = QA.u, w = QA.w;
 
+  function tankSe(N, k) { return Math.sqrt((N + 1) * (N - k) / (k * (k + 2))); }
+  function unifSe(theta, n) { return theta / Math.sqrt(n * (n + 2)); }
+  function sdSeApprox(sd, n) { return sd / Math.sqrt(2 * n); }
+
   var FAM = {
     tank: function (rng) {
       var N = rng.int(120, 2000);
@@ -14,7 +18,7 @@
         q: "How many were ever produced?",
         sub: "You capture <b>" + k + "</b> units with these serial numbers, drawn without replacement from 1…N.",
         show: s.join("  ·  "),
-        truth: N, se: (N - m) / k + N / (k * k) + 1,
+        truth: N, se: tankSe(N, k),
         lo: m, hi: Math.round(m * 3.4),
         best: Math.round(m * (1 + 1 / k) - 1),
         why: "the minimum-variance unbiased estimate is m(1+1/k) − 1 = " + Math.round(m * (1 + 1 / k) - 1) + ", using the largest serial m = " + m
@@ -42,7 +46,7 @@
         q: "Estimate the standard deviation",
         sub: "<b>" + n + "</b> independent normal draws. The mean is not given.",
         show: s.join("  ·  "),
-        truth: sd, se: sd / Math.sqrt(2 * n),
+        truth: sd, se: sdSeApprox(sd, n),
         lo: 1, hi: Math.round(u.sd(s) * 3 + 5),
         best: u.round(u.sd(s), 2),
         why: "sample sd = " + u.round(u.sd(s), 2) + "; a quick field estimate is range/4 = " + u.round((Math.max.apply(null, s) - Math.min.apply(null, s)) / 4, 2)
@@ -72,7 +76,7 @@
         q: "Estimate the upper bound",
         sub: "<b>" + n + "</b> draws from a uniform distribution on [0, θ].",
         show: s.join("  ·  "),
-        truth: th, se: th / n,
+        truth: th, se: unifSe(th, n),
         lo: Math.round(mx), hi: Math.round(mx * 2.6),
         best: u.round(mx * (n + 1) / n, 1),
         why: "max × (n+1)/n = " + u.round(mx * (n + 1) / n, 1) + " — the sample max always understates θ"
@@ -146,4 +150,9 @@
       ctx.notes = "Two of these families punish the naive answer hardest: for a <b>uniform bound</b> the sample max is biased low by θ/(n+1), and for the <b>tank problem</b> only the largest serial carries information — the other draws just tell you how dense the sample is.";
     }
   });
+
+  // Browser no-op; exposes the estimator families and formula helpers to verification.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { FAM: FAM, tankSe: tankSe, unifSe: unifSe, sdSeApprox: sdSeApprox };
+  }
 })();

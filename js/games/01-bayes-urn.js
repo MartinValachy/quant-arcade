@@ -15,6 +15,16 @@
     return '<span style="width:15px;height:15px;border-radius:50%;background:' + c + ';display:inline-block;box-shadow:0 0 8px ' + c + '44"></span>';
   }
 
+  function posterior(A, B, priorA, seq) {
+    var LA = 1, LB = 1;
+    var pA = A.r / (A.r + A.b), pB = B.r / (B.r + B.b);
+    for (var i = 0; i < seq.length; i++) {
+      if (seq[i] === "R") { LA *= pA; LB *= pB; }
+      else { LA *= 1 - pA; LB *= 1 - pB; }
+    }
+    return priorA * LA / (priorA * LA + (1 - priorA) * LB);
+  }
+
   function makeItem(rng, cfg) {
     var A = { r: rng.int(1, 5), b: rng.int(1, 5) };
     var B = { r: rng.int(1, 5), b: rng.int(1, 5) };
@@ -29,21 +39,11 @@
     var seq = [];
     for (var i = 0; i < n; i++) seq.push(rng.bool(pRed) ? "R" : "B");
 
-    function lik(urn, s) {
-      var p = 1, pr = urn.r / (urn.r + urn.b);
-      for (var i = 0; i < s.length; i++) p *= (s[i] === "R" ? pr : 1 - pr);
-      return p;
-    }
-    var LA = lik(A, seq), LB = lik(B, seq);
-    var post = priorA * LA / (priorA * LA + (1 - priorA) * LB);
+    var post = posterior(A, B, priorA, seq);
 
     // classic wrong turns
-    var noPrior = LA / (LA + LB);
-    var lastOnly = (function () {
-      var s = [seq[seq.length - 1]];
-      var la = lik(A, s), lb = lik(B, s);
-      return priorA * la / (priorA * la + (1 - priorA) * lb);
-    })();
+    var noPrior = posterior(A, B, 0.5, seq);
+    var lastOnly = posterior(A, B, priorA, [seq[seq.length - 1]]);
     var flipped = 1 - post;
 
     var cands = [noPrior, lastOnly, flipped, priorA, post * 0.6 + 0.2];
@@ -52,9 +52,16 @@
       if (opts.length >= 4) return;
       if (c > 0.02 && c < 0.98 && opts.every(function (o) { return Math.abs(o - c) > 0.035; })) opts.push(c);
     });
-    while (opts.length < 4) {
+    var fillGuard = 0;
+    while (opts.length < 4 && fillGuard++ < 200) {
       var j = u.clamp(post + rng.uni(-0.3, 0.3), 0.03, 0.97);
       if (opts.every(function (o) { return Math.abs(o - j) > 0.04; })) opts.push(j);
+    }
+    // Deterministic fallback keeps the question scorable even if a supplied RNG
+    // repeatedly returns a colliding distractor.
+    for (var f = 0; opts.length < 4 && f <= 94; f++) {
+      var fallback = 0.03 + f * 0.01;
+      if (opts.every(function (o) { return Math.abs(o - fallback) > 0.04; })) opts.push(fallback);
     }
     rng.shuffle(opts);
 
@@ -125,4 +132,9 @@
       ctx.notes = "Posterior odds = prior odds × likelihood ratio. Under a clock, work in <b>odds</b>, not probabilities — the update is one multiplication instead of a division you cannot do in your head.";
     }
   });
+
+  // Browser no-op; exposes the pure posterior/question generator to verification.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { makeItem: makeItem, posterior: posterior };
+  }
 })();

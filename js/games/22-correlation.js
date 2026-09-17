@@ -4,6 +4,7 @@
 
   function sample(rng, n, rho, opts) {
     var xs = [], ys = [];
+    var appliedOutliers = 0;
     for (var i = 0; i < n; i++) {
       var z1 = rng.norm(0, 1), z2 = rng.norm(0, 1);
       xs.push(z1);
@@ -14,6 +15,7 @@
         var j = rng.int(0, n - 1);
         xs[j] = rng.norm(0, 1) * 3.1;
         ys[j] = rng.norm(0, 1) * 3.1;
+        appliedOutliers++;
       }
     }
     if (opts && opts.scale) {
@@ -21,7 +23,15 @@
       xs = xs.map(function (v) { return v * sx + mx; });
       ys = ys.map(function (v) { return v * sy + my; });
     }
-    return { xs: xs, ys: ys, r: u.corr(xs, ys) };
+    return { xs: xs, ys: ys, r: u.corr(xs, ys), outliers: appliedOutliers };
+  }
+
+  function makeRound(rng, cfg) {
+    var n = rng.int(cfg.n[0], cfg.n[1]);
+    var rho = u.round(rng.uni(-0.95, 0.95), 2);
+    var outliers = cfg.outliers ? rng.int(1, cfg.outliers) : 0;
+    var s = sample(rng, n, rho, { outliers: outliers, scale: true });
+    return { n: n, rho: rho, outliersRequested: outliers, sample: s };
   }
 
   QA.registerGame({
@@ -49,9 +59,8 @@
       var errs = [];
 
       while (ctx.running) {
-        var n = rng.int(cfg.n[0], cfg.n[1]);
-        var rho = u.round(rng.uni(-0.95, 0.95), 2);
-        var s = sample(rng, n, rho, { outliers: cfg.outliers ? rng.int(0, cfg.outliers) : 0, scale: true });
+        var round = makeRound(rng, cfg);
+        var n = round.n, rho = round.rho, s = round.sample;
 
         var res = await w.slider(ctx, {
           eyebrow: "SAMPLE CORRELATION",
@@ -89,4 +98,7 @@
       ctx.notes = "Useful anchors: a cloud that is visibly tilted but still round-ish is about <b>0.3</b>; a clear elliptical band is <b>0.6</b>; a narrow cigar is <b>0.9</b>. Most people overestimate low correlations and underestimate high ones.";
     }
   });
+
+  // Browser no-op; exposes the pure sample generator to the verification harness.
+  if (typeof module !== "undefined" && module.exports) module.exports = { sample: sample, makeRound: makeRound };
 })();

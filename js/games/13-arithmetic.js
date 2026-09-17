@@ -56,6 +56,7 @@
     }
     return { q: q, a: ans, dp: dp };
   }
+  function tolerance(dp) { return dp ? 0.005 : 0; }
 
   QA.registerGame({
     id: "arithmetic", n: 13, name: "80 in 8", cat: "math",
@@ -84,7 +85,7 @@
         var res = await w.numeric(ctx, {
           eyebrow: "SOLVE",
           q: '<span class="bignum">' + it.q + "</span>",
-          answer: it.a, tol: it.dp ? 0.005 : 0, dp: it.dp,
+          answer: it.a, tol: tolerance(it.dp), dp: it.dp,
           hint: it.dp ? "decimals allowed · ENTER" : "ENTER to submit",
           feedbackMs: 260,
           explain: function (v, ok) { return ok ? "✔" : "✘ " + u.fmt(it.a, it.dp); }
@@ -94,4 +95,8 @@
       ctx.notes = "Speed comes from <b>decomposition</b>, not from calculating faster: 47×23 is 47×20 + 47×3. Squares near a round number use (a±b)² = a² ± 2ab + b². Division by 8 is halve, halve, halve.";
     }
   });
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { gen: gen, tolerance: tolerance };
+  }
 })();

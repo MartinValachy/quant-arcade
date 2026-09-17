@@ -51,7 +51,7 @@
 
   /* ---------------- multiple choice ---------------- */
   /* spec: {eyebrow,q,sub, build(host), choices:[{label,sub,correct}],
-            pts, cols, explain(idx)->html, feedbackMs, noKeys} */
+            pts, cols, explain(idx)->html, feedbackMs, noKeys, manual} */
   function ask(ctx, spec) {
     var host = spec.host || mount(ctx);
     if (!spec.host) host.appendChild(promptEl(spec));
@@ -76,7 +76,10 @@
           if (spec.choices[j].correct) b.classList.add("right");
           else b.classList.add(j === i ? "wrong" : "miss");
         });
-        var pts = ctx.resolve({ correct: ok, pts: spec.pts, ms: ms, el: btns[i] });
+        // manual games own their score (typically realised PnL) and still use
+        // this widget for interaction and feedback.
+        var pts = spec.manual ? 0
+          : ctx.resolve({ correct: ok, pts: spec.pts, ms: ms, el: btns[i] });
         fb.className = "fb " + (ok ? "good" : "bad");
         fb.innerHTML = (spec.explain ? spec.explain(i, ok) : (ok ? "correct" : "wrong"));
         setTimeout(function () { finish({ correct: ok, idx: i, ms: ms, pts: pts }); },

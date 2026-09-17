@@ -24,6 +24,24 @@
     for (var i = 0; i < n; i++) s += rng.bool() ? "H" : "T";
     return s;
   }
+  function fallbackOpponent(A, n, minEdge) {
+    var best = null, bestEdge = -1;
+    for (var mask = 0; mask < Math.pow(2, n); mask++) {
+      var B = "";
+      for (var bit = n - 1; bit >= 0; bit--) B += (mask & Math.pow(2, bit)) ? "H" : "T";
+      if (B === A) continue;
+      var edge = Math.abs(pFirst(A, B) - 0.5);
+      if (edge > bestEdge) { best = B; bestEdge = edge; }
+      if (edge >= minEdge) return B;
+    }
+    return best;
+  }
+  function makePair(rng, n, minEdge) {
+    var A = randPat(rng, n), B = randPat(rng, n), guard = 0;
+    while ((B === A || Math.abs(pFirst(A, B) - 0.5) < minEdge) && guard++ < 120) B = randPat(rng, n);
+    if (B === A || Math.abs(pFirst(A, B) - 0.5) < minEdge) B = fallbackOpponent(A, n, minEdge);
+    return { A: A, B: B, pA: pFirst(A, B) };
+  }
   function patHTML(p, color) {
     return p.split("").map(function (c) {
       return '<span style="display:inline-block;width:30px;height:30px;line-height:30px;border-radius:8px;margin:0 2px;' +
@@ -95,9 +113,7 @@
           continue;
         }
 
-        var A = randPat(rng, cfg.len), B = randPat(rng, cfg.len), guard = 0;
-        while ((B === A || Math.abs(pFirst(A, B) - 0.5) < cfg.minEdge) && guard++ < 120) B = randPat(rng, cfg.len);
-        var pA = pFirst(A, B);
+        var pair = makePair(rng, cfg.len, cfg.minEdge), A = pair.A, B = pair.B, pA = pair.pA;
         var sim = race(rng, A, B, 26);
 
         var res = await w.ask(ctx, {
@@ -128,4 +144,8 @@
       ctx.notes = "Penney's game is <b>non-transitive</b>: for any pattern your opponent names, you can name one that beats it. The rule of thumb for 3-letter patterns — take their first two letters, prepend the opposite of their <em>second</em> letter.";
     }
   });
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { L: L, pFirst: pFirst, wait: wait, randPat: randPat, fallbackOpponent: fallbackOpponent, makePair: makePair };
+  }
 })();

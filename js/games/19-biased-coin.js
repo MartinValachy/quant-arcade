@@ -2,6 +2,14 @@
 (function () {
   var QA = window.QA, u = QA.u, w = QA.w;
 
+  function makeRound(rng, cfg) {
+    var target = rng.int(0, cfg.coins - 1);
+    var bias = rng.uni(cfg.bias[0], cfg.bias[1]) * (rng.bool() ? 1 : -1);
+    var ps = [];
+    for (var i = 0; i < cfg.coins; i++) ps.push(i === target ? 0.5 + bias : 0.5);
+    return { target: target, bias: bias, ps: ps };
+  }
+
   QA.registerGame({
     id: "biased-coin", n: 19, name: "Spot the Bias", cat: "signal",
     blurb: "Several coins flip live; exactly one is loaded. Every extra flip you wait for is evidence you buy with time you do not have.",
@@ -26,10 +34,8 @@
       var rounds = 0, hits = 0, flipsUsed = [];
 
       while (ctx.running) {
-        var target = rng.int(0, cfg.coins - 1);
-        var bias = rng.uni(cfg.bias[0], cfg.bias[1]) * (rng.bool() ? 1 : -1);
-        var ps = [];
-        for (var i = 0; i < cfg.coins; i++) ps.push(i === target ? 0.5 + bias : 0.5);
+        var round = makeRound(rng, cfg);
+        var target = round.target, bias = round.bias, ps = round.ps;
         rounds++;
 
         var out = await w.live(ctx, function (host, finish, onKey, onCleanup) {
@@ -121,4 +127,7 @@
       ctx.notes = "Distinguishing p = 0.5 from p = 0.6 needs roughly <b>100 flips</b> for a clean call; from 0.5 vs 0.55, about 400. Since you never get that many, the winning play is to commit on the <b>largest</b> deviation once it is a couple of standard errors clear of the pack, not to wait for certainty.";
     }
   });
+
+  // Browser no-op; exposes the pure round generator to the verification harness.
+  if (typeof module !== "undefined" && module.exports) module.exports = { makeRound: makeRound };
 })();

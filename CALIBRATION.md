@@ -145,14 +145,33 @@ These come from a Monte-Carlo of the game's real mechanics under four graded pol
 |---|---|---|---|---|---|---|---|---|---|---|
 | 07 | Quote the Market | standard | mid off by 0.95σ, always NORMAL | mid off by 0.08σ, picks spread | 40 | 780 | 819 | 910 | 145 | 5.10 |
 | 07 | Quote the Market | hard | same | same | 40 | 790 | 838 | 950 | 150 | 5.00 |
-| 08 | Inventory Skew | standard | never skews | skew gain 1.2, 0.8 s reaction | 280 | 900 | 945 | 1050 | 429 | 1.45 |
-| 08 | Inventory Skew | hard | never skews | same | 70 | 590 | 656 | 810 | 469 | 1.11 |
-| 10 | Toxic Flow | standard | accepts any edge > 0.35 | Beta posterior per counterparty | 720 | 1125 | 1350 | 1475 | 555 | 0.73 |
-| 10 | Toxic Flow | hard | same | same | 420 | 780 | 1050 | 1150 | 582 | 0.62 |
+| 08 | Inventory Skew | standard | never skews | skew gain 1.2, 0.8 s reaction | -135 | 1465 | 1501 | 1677 | 395 | 4.05 |
+| 08 | Inventory Skew | hard | never skews | same | -790 | 1276 | 1351 | 1580 | 521 | 3.97 |
+| 10 | Toxic Flow | standard | accepts any edge > 0.35 | Beta posterior per counterparty | 2220 | 3577 | 3831 | 6706 | 1406 | 0.97 |
+| 10 | Toxic Flow | hard | same | same | -1030 | 1613 | 2303 | 5240 | 2698 | 0.98 |
 | 12 | Winner's Curse | standard | shades 0.1σ | shades 1.5σ | 430 | 1975 | 2650 | 2975 | 2044 | 0.76 |
 | 12 | Winner's Curse | hard | same | same | 340 | 1675 | 2225 | 2425 | 2091 | 0.64 |
 | 24 | Kelly Sizing | standard | flat 30% of bankroll, takes traps | full Kelly, skips traps | 3925 | 4300 | 5250 | 6225 | 1290 | 0.29 |
 | 24 | Kelly Sizing | hard | same | same | 2775 | 3900 | 4575 | 5200 | 1135 | 0.99 |
+
+### Recalibration of corrected games — 2026-09-17
+
+Games 08 and 10 were recalibrated after the verification fixes changed their
+scoring paths. The original scratch calibrator was not present in repository
+history, so these values are a transparent reconstruction rather than a claim of
+bit-for-bit reproduction: `verification/python/calibration/pnl_recalibration.py`
+runs 4,000 simulations for each of four explicitly named policies per variant.
+The p50/p90/p95/p99 anchors are the 50th/90th/95th/99th percentile of the
+corresponding policy distribution; `sd` is the standard deviation of the p90
+policy, and `sep = (p90 − p50) / sd`. Inventory Skew uses the corrected full
+liquidation path. Toxic Flow uses the corrected single realized-PnL award.
+
+The policy runs use the shipped 80-second windows and variant mechanics. Inventory
+Skew policies are no skew, then position-control gains 0.4/0.8/1.2 with 1.6/1.2/0.8
+second reactions. Toxic Flow policies are fixed acceptance thresholds 0.35/0.25/0.15
+followed by the per-counterparty Bayesian posterior policy. The resulting anchors
+are monotonic and are now copied into the corresponding `th:` blocks in the game
+files.
 
 ### Balance changes the simulation forced
 

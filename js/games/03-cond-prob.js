@@ -156,6 +156,13 @@
       var c = u.clamp(it.p * rng.uni(0.35, 2.4), 0.0005, 0.998);
       if (opts.every(function (o) { return Math.abs(o - c) > 0.014; })) opts.push(c);
     }
+    /* A very small true probability can leave the random filler with only a
+       narrow admissible interval. Finish from a deterministic grid so every
+       live card still has four distinct choices after the retry guard. */
+    for (var grid = 1; opts.length < 4 && grid < 40; grid++) {
+      var fallback = grid / 40;
+      if (opts.every(function (o) { return Math.abs(o - fallback) > 0.014; })) opts.push(fallback);
+    }
     rng.shuffle(opts);
     it.opts = opts;
     return it;
@@ -197,4 +204,8 @@
       ctx.notes = "The single most valuable habit here: write the conditioning event as a <b>set</b>, count its probability, then count the intersection. Nearly every trap in this game is someone dividing by the wrong denominator.";
     }
   });
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { cond: cond, dice: dice, coinSpace: coinSpace, FAM: FAM, build: build };
+  }
 })();

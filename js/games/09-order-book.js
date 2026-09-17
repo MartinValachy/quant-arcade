@@ -80,7 +80,8 @@
       return {
         q: "Which side carried more size in the top " + k + " levels?",
         choices: [
-          { label: "BIDS", correct: sb > sa }, { label: "ASKS", correct: sa > sb }
+          { label: "BIDS", correct: sb > sa }, { label: "ASKS", correct: sa > sb },
+          { label: "TIE", correct: sb === sa }
         ],
         why: "bids " + sb + " vs asks " + sa
       };
@@ -134,6 +135,23 @@
     }
   };
 
+  function displayValue(o, fmt) { return fmt ? Number(o).toFixed(fmt) : u.fmt(o); }
+  function buildOptions(spec, rng) {
+    var opts = [], seen = {};
+    function add(o) {
+      var key = displayValue(o, spec.fmt);
+      if (!seen[key]) { seen[key] = true; opts.push(o); }
+    }
+    spec.opts.forEach(add);
+    var guard = 0;
+    while (opts.length < 4 && guard++ < 200) add(spec.a * (1 + rng.uni(-0.06, 0.06)));
+    for (var step = 1; opts.length < 4 && step < 1000; step++) {
+      add(spec.a + step);
+      if (opts.length < 4) add(spec.a - step);
+    }
+    return opts;
+  }
+
   QA.registerGame({
     id: "order-book", n: 9, name: "Order Book Reader", cat: "mm",
     blurb: "A level-2 book flashes up, then vanishes. Mid, microprice, imbalance, sweep VWAP — answered from what you actually took in.",
@@ -167,11 +185,7 @@
         var choices;
         if (spec.choices) choices = spec.choices;
         else {
-          var opts = [];
-          spec.opts.forEach(function (o) {
-            if (opts.every(function (x) { return Math.abs(x - o) > Math.pow(10, -spec.fmt) / 2; })) opts.push(o);
-          });
-          while (opts.length < 4) opts.push(spec.a * (1 + rng.uni(-0.06, 0.06)));
+          var opts = buildOptions(spec, rng);
           rng.shuffle(opts);
           choices = opts.map(function (o) {
             return { label: spec.fmt ? o.toFixed(spec.fmt) : u.fmt(o), correct: Math.abs(o - spec.a) < 1e-9 };
@@ -191,4 +205,8 @@
       ctx.notes = "Microprice, not mid, is where the next trade prints. When the bid holds 400 and the ask holds 20, fair value sits <b>near the ask</b> — the heavy side is the one that has to wait.";
     }
   });
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { makeBook: makeBook, sweep: sweep, Q: Q, buildOptions: buildOptions, displayValue: displayValue };
+  }
 })();
